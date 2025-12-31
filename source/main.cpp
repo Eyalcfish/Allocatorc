@@ -60,18 +60,18 @@ void* mallocc(memory_grid* allocator, size_t size) {
 }
 
 void* freec(memory_grid* allocator, void* ptr) {
-    for (int i = 2; i < 512; i+=2) {
+    for (int i = 4; i < 512; i+=2) {
         if (allocator->allocations_head_page[i] == (size_t) ptr) {
+            std::cout << "Freed memory at: " << (size_t)ptr << " index: " << i << std::endl;
             allocator->allocations_head_page[i] = 0;
-            return ptr;
         }
     }
-    return nullptr;
+    return ptr;
 }
 
 void print_page(void* page) {
-    int* current_page = (int*) page;
-    for (int i = 0; i < 17; i++) {
+    size_t* current_page = (size_t*) page;
+    for (int i = 500; i < 512; i++) {
         std::cout << "Entry " << i << ": " << current_page[i] << std::endl;
     }
 }
@@ -81,8 +81,10 @@ int main() {
 
     std::cout << "Allocator initialized." << std::endl;
     int* ptr1 = (int*) mallocc(&allocator, 16);
-    int* ptr2 = (int*) mallocc(&allocator, 8);
     print_page(allocator.allocations_head_page);
+    freec(&allocator, ptr1);
+    print_page(allocator.allocations_head_page);
+    int* ptr2 = (int*) mallocc(&allocator, 8);
     std::cout << "Allocated memory at: " << ptr1 << " " << ptr2 << std::endl;
     ptr1[0] = 42;
     ptr2[0] = 3; 
@@ -90,8 +92,7 @@ int main() {
     std::cout << "Allocated memory at: " << ptr1[0] << std::endl;
     std::cout << "Allocated memory at: " << ptr1[1] << std::endl;
     std::cout << "Allocated memory at: " << ptr2[0] << std::endl;
-    print_page(allocator.head_page);
-    freec(&allocator, ptr1);
+    // print_page(allocator.head_page);
     freec(&allocator, ptr2);
     uninitialize_allocatorc(&allocator);
     return 0;
