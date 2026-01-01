@@ -1,7 +1,11 @@
 #include <vector>
 #include <cassert>
 #include <iostream>
+#ifdef WIN32
 #include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <math.h>
 
 typedef struct  memory_grid{
@@ -11,8 +15,13 @@ typedef struct  memory_grid{
 
 memory_grid initialize_allocatorc() {
     memory_grid allocator;
+    #ifdef WIN32
     allocator.head_page = VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     allocator.allocations_head_page = (size_t*) VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    #else
+    allocator.head_page = mmap(NULL,4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    allocator.allocations_head_page = (size_t*)mmap(NULL,4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    #endif
     allocator.allocations_head_page[2] = (size_t)allocator.head_page + 16;
     return allocator;
 }
@@ -21,8 +30,12 @@ void uninitialize_chain(void* head_page) {
     if (head_page == nullptr) {
         return;
     }
-    uninitialize_chain(head_page);
+    uninitialize_chain((void*) ((size_t*)head_page)[1]);
+    #ifdef WIN32
     VirtualFree(head_page, 0, MEM_RELEASE);
+    #else
+    munmap(head_page,4096);
+    #endif
 }
 
 void uninitialize_allocatorc(memory_grid* allocator) {
@@ -86,7 +99,7 @@ void* freec_from_page(size_t* page, void* ptr) {
             return ptr;
         }
     }
-    std::cout << "Pointer not found in allocations!" << std::endl;
+    // std::cout << "Pointer not found in allocations!" << std::endl;
     return ptr;
 }
 
@@ -182,6 +195,8 @@ int main() {
 
     if (p1) freec_from_page(allocator.allocations_head_page, p1);
     if (p2) freec_from_page(allocator.allocations_head_page, p2);
+
+    std::cout << "\n--- Cleaning up Allocator ---" << std::endl;
 
     uninitialize_allocatorc(&allocator);
     std::cout << "\n=== TEST COMPLETE ===" << std::endl;
